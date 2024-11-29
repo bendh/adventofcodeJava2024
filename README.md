@@ -17,7 +17,12 @@ The given `Day` class will process the input and return a result, which `App` wi
 
 ## How to add a puzzle
 
-The shell for day 1 is already there. These are the steps to add day 2, etc. For day 1 you can start by writing the test cases once the puzzle posts.
+The shell for day 1 is already there. To automatically download the assignment and the input
+add a session.txt with the session cookie after logging in. 
+Then run the App main method, this will download the input for the day(src/resources/dayxx.txt) and the html from 
+the assignment (src/resources/dayxxassignment.html).
+
+These are the steps to add day 2, etc. For day 1 you can start by writing the test cases once the puzzle posts.
 
 ### Part 1
 

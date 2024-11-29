@@ -186,21 +186,18 @@ public class App {
      * This will download your personal input from adventofcode.com and store it
      * in the file specified by {@link #inputFileName(int)}.
      *
-     * @param year The year to use
-     * @param day The puzzle day to get input for
      * @param cookie Your personal login cookie. Get it by inspecting the
      * "cookie" header when you are logged into adventofcode.com. Do not share
      * this value.
      * @return The contents of the input that were written to a
      * file.
      */
-    private static String downloadInput(int year, int day, String cookie) {
-        String url = String.format("https://adventofcode.com/%d/day/%d/input", year, day);
-        System.out.println("Downloading " + url);
+    private static String downloadInput(String webUrl, Optional<String> fileName, String cookie) {
+        System.out.println("Downloading " + webUrl);
 
         URI uri;
         try {
-            uri = new URI(url);
+            uri = new URI(webUrl);
         } catch (URISyntaxException e) {
             throw new RuntimeException(e);
         }
@@ -219,18 +216,20 @@ public class App {
             throw new RuntimeException(e);
         }
         if (response.statusCode() != 200) {
-            throw new RuntimeException("Failed to read input from " + url
+            throw new RuntimeException("Failed to read input from " + webUrl
                     + " using cookie " + cookie.substring(0, 5) + "***** ."
                     + " Response was " + response.statusCode()
                     + " " + response.body());
         }
 
         String input = response.body();
-        try {
-            Files.writeString(Paths.get("./src/main/resources/" + inputFileName(day)), input, StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+        fileName.ifPresent(name -> {
+            try {
+                Files.writeString(Paths.get("./src/main/resources/" + name), input, StandardCharsets.UTF_8);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        });
         return input;
     }
 
@@ -240,7 +239,10 @@ public class App {
      * If a file exists where specified by {@link #inputFileName(int)}, then that will be used.
      *
      * If no such file exists, but there is a 'session.txt' file on the
-     * classpath (in src/main/resources) then the input will be downloaded using
+     * classpath (in src/main/resources) then:
+     * - The input will be downloaded
+     * - The assignment will be downloaded
+     * the input will be downloaded using
      * the contents of session.txt as the cookie header.
      *
      * @param year the year to get input for
@@ -248,24 +250,31 @@ public class App {
      * @return The input as a String.
      */
     private static String readInput(int year, int day) {
-        Optional<String> fileInput = readClassPathFile(inputFileName(day));
+        return readClassPathFile(inputFileName(day))
+                .orElseGet(() -> readClassPathFile("session.txt")
+                        .map(cookie -> {
+                            downloadAssignment(year, day, cookie);
+                            var assignmentFileName = "day%02dassignment.html".formatted(day);
+                            var assignmentUrl = "https://adventofcode.com/%d/day/%d".formatted(year, day);
+                            downloadInput(assignmentUrl, Optional.of(assignmentFileName), cookie);
+                            var inputUrl = assignmentUrl + "/input";
+                            var inputFileName = "day%02d.txt".formatted(day);
+                            return downloadInput(inputUrl, Optional.of(inputFileName), cookie);
+                        })
+                        .orElseThrow(()->{
+                            System.err.println("Cannot get input for year " + year + " and day " + day + "."
+                                    + " Either put the input at 'src/main/resources/day[xx].txt"
+                                    + " or use your browser's network inspector to read the 'cookie' header from the request for"
+                                    + " input and store it in 'src/main/resources/session.txt' (this file will be ignored by Git).");
+                            System.exit(1);
+                            return new RuntimeException("");
+                        }));
+    }
 
-        String input = null;
-        if (fileInput.isPresent()) {
-            input = fileInput.get();
-        } else {
-            Optional<String> cookie = readClassPathFile("session.txt");
-            if (cookie.isPresent()) {
-                input = downloadInput(year, day, cookie.get());
-            } else {
-                System.err.println("Cannot get input for year " + year + " and day " + day + "."
-                        + " Either put the input at 'src/main/resources/day[xx].txt"
-                        + " or use your browser's network inspector to read the 'cookie' header from the request for"
-                        + " input and store it in 'src/main/resources/session.txt' (this file will be ignored by Git).");
-                System.exit(1);
-            }
-        }
-        return input;
+    private static void downloadAssignment(int year, int day, String cookie) {
+        var fileName = "day%02dassignment.html".formatted(day);
+        var path = Path.of("./src/main/resources/" + fileName);
+
     }
 
     /**
