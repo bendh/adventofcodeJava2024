@@ -59,9 +59,7 @@ public class App {
     /**
      * This is just a helper method that can be used if you add a {@code main}
      * method to your Day.
-     *
      * For example, you could add this to Day01.java:
-     *
      * <code><pre>
      * public static void main(String[] args) {
      *   App.runPart1ForDay(1);
@@ -79,9 +77,7 @@ public class App {
     /**
      * This is just a helper method that can be used if you add a {@code main}
      * method to your Day.
-     *
      * For example, you could add this to Day01.java:
-     *
      * <code><pre>
      * public static void main(String[] args) {
      *   App.runPart2ForDay(1);
@@ -98,7 +94,6 @@ public class App {
 
     /**
      * If today is in the month of December, return which day of December it is. In other words, if today is December 3rd, this will return 3.
-     *
      * If today is <i>not</i> in the month of December, this will return 1.
      *
      * @return The day of the month if today is in December, or 1 otherwise.
@@ -116,10 +111,8 @@ public class App {
     /**
      * This will return the current year during December, or the prior year any
      * other time.
-     *
      * That way, if you are still working on the 2024 puzzles in January 2025,
      * this will still return 2024.
-     *
      * If you are working on puzzles older than a year, hard code the year
      * instead of calling this method.
      *
@@ -143,7 +136,7 @@ public class App {
      * @return An Optional containing the contents of the file as a String, or
      * an empty Optional if the file could not be read for any reason.
      */
-    private static Optional<String> readClassPathFile(String fileName) {
+    public static Optional<String> readClassPathFile(String fileName) {
         URL url = ClassLoader.getSystemResource(fileName);
         if (url == null) {
             System.out.println("No file " + fileName + " on the classpath.");
@@ -192,7 +185,7 @@ public class App {
      * @return The contents of the input that were written to a
      * file.
      */
-    private static String downloadInput(String webUrl, Optional<String> fileName, String cookie) {
+    private static String downloadInput(String webUrl, String fileName, String cookie) {
         System.out.println("Downloading " + webUrl);
 
         URI uri;
@@ -207,10 +200,8 @@ public class App {
                 .header("cookie", cookie.trim())
                 .build();
 
-        HttpClient client = HttpClient.newHttpClient();
-
         HttpResponse<String> response;
-        try {
+        try (HttpClient client = HttpClient.newHttpClient()){
             response = client.send(request, HttpResponse.BodyHandlers.ofString());
         } catch (InterruptedException | IOException e) {
             throw new RuntimeException(e);
@@ -221,9 +212,8 @@ public class App {
                     + " Response was " + response.statusCode()
                     + " " + response.body());
         }
-
         String input = response.body();
-        fileName.ifPresent(name -> {
+        Optional.ofNullable(fileName).ifPresent(name -> {
             try {
                 Files.writeString(Paths.get("./src/main/resources/" + name), input, StandardCharsets.UTF_8);
             } catch (IOException e) {
@@ -235,9 +225,7 @@ public class App {
 
     /**
      * Reads the input for the given year and day.
-     *
      * If a file exists where specified by {@link #inputFileName(int)}, then that will be used.
-     *
      * If no such file exists, but there is a 'session.txt' file on the
      * classpath (in src/main/resources) then:
      * - The input will be downloaded
@@ -250,16 +238,20 @@ public class App {
      * @return The input as a String.
      */
     private static String readInput(int year, int day) {
+        // Always download the newest assignment as part two will be included
+        // when solution is provided
+        readClassPathFile("session.txt").ifPresent( cookie -> {
+            var assignmentFileName = "day%02dassignment.html".formatted(day);
+            var assignmentUrl = "https://adventofcode.com/%d/day/%d".formatted(year, day);
+            downloadInput(assignmentUrl, assignmentFileName, cookie);
+        });
+
         return readClassPathFile(inputFileName(day))
                 .orElseGet(() -> readClassPathFile("session.txt")
                         .map(cookie -> {
-                            downloadAssignment(year, day, cookie);
-                            var assignmentFileName = "day%02dassignment.html".formatted(day);
-                            var assignmentUrl = "https://adventofcode.com/%d/day/%d".formatted(year, day);
-                            downloadInput(assignmentUrl, Optional.of(assignmentFileName), cookie);
-                            var inputUrl = assignmentUrl + "/input";
+                            var inputUrl = "https://adventofcode.com/%d/day/%d/input".formatted(year, day);
                             var inputFileName = "day%02d.txt".formatted(day);
-                            return downloadInput(inputUrl, Optional.of(inputFileName), cookie);
+                            return downloadInput(inputUrl, inputFileName, cookie);
                         })
                         .orElseThrow(()->{
                             System.err.println("Cannot get input for year " + year + " and day " + day + "."
@@ -271,12 +263,6 @@ public class App {
                         }));
     }
 
-    private static void downloadAssignment(int year, int day, String cookie) {
-        var fileName = "day%02dassignment.html".formatted(day);
-        var path = Path.of("./src/main/resources/" + fileName);
-
-    }
-
     /**
      * Parse the given String as an Integer or die trying (exit the JVM).
      *
@@ -285,7 +271,7 @@ public class App {
      */
     private static int intOrDie(String numeric) {
         try {
-            return Integer.valueOf(numeric);
+            return Integer.parseInt(numeric);
         } catch (NumberFormatException e) {
             System.out.println("The argument '" + numeric + "' could not be interpreted as an integer number.");
             System.exit(1);
@@ -295,9 +281,7 @@ public class App {
 
     /**
      * Uses "Reflection" (Java metaprogramming) to get an instance of the class for the given day.
-     *
      * Specifically, if you pass "1" it will return an instance of {@code aoc.day01.Day01}.
-     *
      * If there is no Day class for the given day, the JVM will exit.
      *
      * @param day The day number
