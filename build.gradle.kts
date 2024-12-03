@@ -24,6 +24,8 @@ dependencies {
     implementation(kotlin("stdlib-jdk8"))
     testImplementation(kotlin("test"))
     testImplementation("io.kotest:kotest-runner-junit5-jvm:$kotestVersion")
+    testImplementation("org.assertj:assertj-core:3.26.3")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.0")
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
